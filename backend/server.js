@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import db from "./db.js";
 import issueRoutes from "./route/issueRoutes.js";
 import userRoutes from "./route/userRoutes.js";
+import machineRoutes from "./route/machineRoutes.js";
 const app = express();
 const SECRET_KEY = "industrial_secret_key";
 
@@ -70,6 +71,7 @@ app.post("/api/login", async (req, res) => {
 app.use("/api/issues", issueRoutes);
 // ===== PROTECTED ROUTE =====
 app.use("/api/users", userRoutes);
+app.use("/api/machines", machineRoutes);
 
 app.get("/api/profile", (req, res) => {
   const authHeader = req.headers["authorization"];  // Ambil token dari header Authorization

@@ -9,6 +9,11 @@ const outfit = Outfit({
   subsets: ["latin"],
 });
 
+export const metadata = {
+  title: 'Equipment Care', // Ganti sesuai kebutuhan
+  description: 'machine issue for maintenance', // Opsional
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

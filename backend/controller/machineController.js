@@ -2,7 +2,8 @@ import db from "../db.js";
 
 // ========== GET ALL MACHINES ==========
 export const getAllMachines = (req, res) => {
-  const q = "SELECT * FROM machines ORDER BY created_at DESC";
+  const q = `SELECT id, machine_code as machineCode, machine_name as machineName, location, serial_number as serialNumber, brand, model, year_installed as year, status, description
+            FROM machines ORDER BY created_at DESC`;
   db.query(q, (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(result);
