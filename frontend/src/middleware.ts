@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Daftar path yang memerlukan minimal login (token valid)
-  const loginRequiredPaths = ["/", "/profile", "/user", "/machine"];
+  const loginRequiredPaths = ["/", "/profile", "/user", "/machine", "/issue"];
   const requiresLogin = loginRequiredPaths.some(
     (path) => pathname === path || pathname.startsWith(path + "/")
   );
@@ -53,5 +53,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/signin", "/", "/user", "/machine", "/profile"],
+  matcher: ["/signin", "/", "/user", "/machine", "/profile", "/issue"],
 };

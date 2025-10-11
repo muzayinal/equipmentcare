@@ -12,12 +12,13 @@ type BadgeColor =
   | "dark";
 
 interface BadgeProps {
-  variant?: BadgeVariant; // Light or solid variant
-  size?: BadgeSize; // Badge size
-  color?: BadgeColor; // Badge color
-  startIcon?: React.ReactNode; // Icon at the start
-  endIcon?: React.ReactNode; // Icon at the end
-  children: React.ReactNode; // Badge content
+  variant?: BadgeVariant;
+  size?: BadgeSize;
+  color?: BadgeColor;
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
+  children: React.ReactNode;
+  priority?: "critical" | "high" | "medium" | "low"; // Make sure priority is here
 }
 
 const Badge: React.FC<BadgeProps> = ({
@@ -27,6 +28,7 @@ const Badge: React.FC<BadgeProps> = ({
   startIcon,
   endIcon,
   children,
+  priority,
 }) => {
   const baseStyles =
     "inline-flex items-center px-2.5 py-0.5 justify-center gap-1 rounded-full font-medium";
@@ -63,9 +65,20 @@ const Badge: React.FC<BadgeProps> = ({
     },
   };
 
+  // Priority mapping to colors
+  const priorityMap: Record<string, BadgeColor> = {
+    critical: "error",
+    high: "warning",
+    medium: "info",
+    low: "success",
+  };
+
+  // Use priority map if priority is set, else fallback to the provided color
+  const finalColor = priority ? priorityMap[priority] : color;
+
   // Get styles based on size and color variant
   const sizeClass = sizeStyles[size];
-  const colorStyles = variants[variant][color];
+  const colorStyles = variants[variant][finalColor];
 
   return (
     <span className={`${baseStyles} ${sizeClass} ${colorStyles}`}>

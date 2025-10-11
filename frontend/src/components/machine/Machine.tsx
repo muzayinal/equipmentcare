@@ -50,7 +50,7 @@ export default function MachineTable({
 
       try {
         setLoading(true);
-        const res = await fetch("http://localhost:4000/api/machines/",{
+        const res = await fetch("http://localhost:4000/api/machines",{
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,

@@ -4,14 +4,16 @@ import db from "../db.js";
 export const getAllIssues = (req, res) => {
   const q = `
     SELECT 
-      i.*, 
-      m.machine_name AS machine_name, 
-      u.username AS reporter_name,
-      a.username AS assigned_to_name
+      i.id, 
+      i.error_summary AS errorSummary, 
+      i.priority, 
+      i.status, 
+      m.machine_name AS machineName, 
+      m.location, 
+      u.username AS reporterName
     FROM machine_issues i
     LEFT JOIN machines m ON i.machine_id = m.id
     LEFT JOIN users u ON i.reported_by_id = u.id
-    LEFT JOIN users a ON i.assigned_to_id = a.id
     ORDER BY i.created_at DESC
   `;
 
@@ -26,13 +28,11 @@ export const getIssueById = (req, res) => {
   const q = `
     SELECT 
       i.*, 
-      m.machine_name AS machine_name,
-      u.username AS reporter_name,
-      a.username AS assigned_to_name
+      m.machine_name AS machineName,
+      u.username AS reporterName
     FROM machine_issues i
     LEFT JOIN machines m ON i.machine_id = m.id
     LEFT JOIN users u ON i.reported_by_id = u.id
-    LEFT JOIN users a ON i.assigned_to_id = a.id
     WHERE i.id = ?
   `;
 
@@ -52,17 +52,14 @@ export const createIssue = (req, res) => {
     error_description,
     error_code,
     reported_by_id,
-    assigned_to_id,
     priority,
     status,
-    initial_action,
-    machine_condition,
   } = req.body;
 
   const q = `
     INSERT INTO machine_issues 
-    (machine_id, error_summary, error_description, error_code, reported_by_id, assigned_to_id, priority, status, initial_action, machine_condition, occurred_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    (machine_id, error_summary, error_description, error_code, reported_by_id, priority, status, occurred_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
   `;
 
   db.query(
@@ -73,11 +70,8 @@ export const createIssue = (req, res) => {
       error_description,
       error_code,
       reported_by_id,
-      assigned_to_id || null,
       priority || "Medium",
       status || "Open",
-      initial_action || null,
-      machine_condition || null,
     ],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -93,10 +87,13 @@ export const updateIssue = (req, res) => {
   const values = [];
 
   for (const key in req.body) {
-    fields.push(`${key} = ?`);
-    values.push(req.body[key]);
+    if (req.body.hasOwnProperty(key)) {
+      fields.push(`${key} = ?`);
+      values.push(req.body[key]);
+    }
   }
 
+  // Jika tidak ada field yang diupdate
   if (fields.length === 0)
     return res.status(400).json({ message: "No fields to update" });
 
@@ -150,18 +147,19 @@ export const updateIssueStatus = (req, res) => {
       }
     }
 
-    // Jalankan update status
-    const q = `
-      UPDATE machine_issues 
-      SET status = ?, 
-          updated_at = NOW(),
-          ${status === "On Progress" ? "repair_start = NOW()," : ""}
-          ${status === "Closed" ? "repair_end = NOW()," : ""}
-          updated_by = ?
-      WHERE id = ?
-    `;
+    // Susun query update dengan kondisi repair_start dan repair_end
+    const updates = ["status = ?", "updated_at = NOW()", "updated_by = ?"];
+    const params = [status, req.user.id, id];
 
-    db.query(q, [status, req.user.id, id], (err2, result) => {
+    if (status === "On Progress") {
+      updates.splice(2, 0, "repair_start = NOW()"); // insert before updated_by
+    } else if (status === "Closed") {
+      updates.splice(2, 0, "repair_end = NOW()");
+    }
+
+    const q = `UPDATE machine_issues SET ${updates.join(", ")} WHERE id = ?`;
+
+    db.query(q, params, (err2, result) => {
       if (err2) return res.status(500).json({ error: err2.message });
       if (result.affectedRows === 0)
         return res.status(404).json({ message: "Issue not found" });

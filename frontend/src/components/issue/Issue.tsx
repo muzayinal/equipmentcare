@@ -9,157 +9,98 @@ import {
   TableRow,
 } from "../ui/table";
 import Cookies from "js-cookie";
-import Badge from "../ui/badge/Badge";
+import Badge from "../ui/badge/Badge"; // Import Badge
 import Image from "next/image";
+import { jwtDecode } from "jwt-decode";
+
+interface DecodedToken {
+  username: string;
+  email: string;
+  role: string;  // Pastikan token memiliki properti 'role'
+}
+
 import {
   PencilIcon,
   TrashBinIcon,
 } from "../../icons/index";
-interface Order {
+
+interface Issue {
   id: number;
-  user: {
-    image: string;
-    name: string;
-    role: string;
-  };
-  projectName: string;
-  team: {
-    images: string[];
-  };
+  machineName: string;
+  location: string;
+  errorSummary: string;
+  errorDescription: string;
+  errorCode: string;
+  priority: string;
   status: string;
-  budget: string;
 }
 
-// Define the table data using the interface
-const tableData: Order[] = [
-  {
-    id: 1,
-    user: {
-      image: "/images/user/user-17.jpg",
-      name: "Lindsey Curtis",
-      role: "Web Designer",
-    },
-    projectName: "Agency Website",
-    team: {
-      images: [
-        "/images/user/user-22.jpg",
-        "/images/user/user-23.jpg",
-        "/images/user/user-24.jpg",
-      ],
-    },
-    budget: "3.9K",
-    status: "Active",
-  },
-  {
-    id: 2,
-    user: {
-      image: "/images/user/user-18.jpg",
-      name: "Kaiya George",
-      role: "Project Manager",
-    },
-    projectName: "Technology",
-    team: {
-      images: ["/images/user/user-25.jpg", "/images/user/user-26.jpg"],
-    },
-    budget: "24.9K",
-    status: "Pending",
-  },
-  {
-    id: 3,
-    user: {
-      image: "/images/user/user-17.jpg",
-      name: "Zain Geidt",
-      role: "Content Writing",
-    },
-    projectName: "Blog Writing",
-    team: {
-      images: ["/images/user/user-27.jpg"],
-    },
-    budget: "12.7K",
-    status: "Active",
-  },
-  {
-    id: 4,
-    user: {
-      image: "/images/user/user-20.jpg",
-      name: "Abram Schleifer",
-      role: "Digital Marketer",
-    },
-    projectName: "Social Media",
-    team: {
-      images: [
-        "/images/user/user-28.jpg",
-        "/images/user/user-29.jpg",
-        "/images/user/user-30.jpg",
-      ],
-    },
-    budget: "2.8K",
-    status: "Cancel",
-  },
-  {
-    id: 5,
-    user: {
-      image: "/images/user/user-21.jpg",
-      name: "Carla George",
-      role: "Front-end Developer",
-    },
-    projectName: "Website",
-    team: {
-      images: [
-        "/images/user/user-31.jpg",
-        "/images/user/user-32.jpg",
-        "/images/user/user-33.jpg",
-      ],
-    },
-    budget: "4.5K",
-    status: "Active",
-  },
-];
-interface UserData {
-  name: string;
-  email: string;
+interface IssuesTableProps {
+  reload: boolean;
+  onEdit: (issues: Issue) => void;
+  onDelete: (machineId: string) => void;
 }
 
-export default function IssueTable() {
-    const [userData, setUserData] = useState<UserData | null>(null);
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState<boolean>(true);
-    useEffect(() => {
-      const fetchUserData = async () => {
+export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProps) {
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [role, setRole] = useState<string | null>(null); // Mengganti isOperator dan isAdmin
+
+  // Fetch issues from API
+  useEffect(() => {
+    const fetchIssues = async () => {
       const token = Cookies.get("token");
-        if (!token) {
-          setLoading(false);
-          setError("Token not found!");
-          return;
+      if (!token) {
+        setLoading(false);
+        setError("Token not found!");
+        return;
+      }
+
+      try {
+        // Decode token untuk ambil role
+        const decodedToken: DecodedToken = jwtDecode(token);  // menggunakan <any> untuk typing decoded token
+        // Cek role dari token
+        if (decodedToken.role === 'admin') {
+          setRole('admin');
+        } else if (decodedToken.role === 'technician') {
+          setRole('technician');
         }
 
-        try {
-          const res = await fetch(`http://localhost:4000/api/users/`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+      } catch (err) {
+        console.error('Error decoding token:', err);
+        setError('Invalid token or expired');
+        setLoading(false);
+        return;
+      }
 
-          if (!res.ok) {
-            throw new Error(`HTTP error! Status: ${res.status}`);
-          }
+      // Fetch issues dari API
+      try {
+        const res = await fetch(`http://localhost:4000/api/issues`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
 
-          const data = await res.json();
-          setUserData(data);
-        } catch (err) {
-          setError("Failed to fetch user data");
-        } finally {
-          setLoading(false);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
         }
-      };
 
-      fetchUserData();
+        const data = await res.json();
+        setIssues(data);
+      } catch (err) {
+        setError("Failed to fetch issue data");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  }, []); // hanya jalan saat profileData berubah
+    fetchIssues();
+  }, [reload]);
 
-
+  // Handle loading and error states
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -167,114 +108,168 @@ export default function IssueTable() {
   if (error) {
     return <div>{error}</div>;
   }
-    return (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-            <div className="max-w-full overflow-x-auto">
-                <div className="min-w-[1102px]">
-                    <Table>
-                        {/* Table Header */}
-                        <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
-                            <TableRow>
-                                <TableCell
-                                isHeader
-                                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                                >
-                                No
-                                </TableCell>
-                                <TableCell
-                                isHeader
-                                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                                >
-                                Username
-                                </TableCell>
-                                <TableCell
-                                isHeader
-                                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                                >
-                                Email
-                                </TableCell>
-                                <TableCell
-                                isHeader
-                                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                                >
-                                Full Name
-                                </TableCell>
-                                <TableCell
-                                isHeader
-                                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                                >
-                                Action
-                                </TableCell>
-                            </TableRow>
-                        </TableHeader>
 
-                        {/* Table Body */}
-                        {userData && (
-                          <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                            {Array.isArray(userData) && userData.length > 0 ? (
-                              userData.map((user, index) => (
-                                  <TableRow key={user.email}>
-                                    <TableCell className="px-5 py-4 sm:px-6 text-start">
-                                        <div className="flex items-center gap-3">
-                                            {index + 1}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="px-5 py-4 sm:px-6 text-start">
-                                        <div className="flex items-center gap-3">
-                                        {/* <div className="w-10 h-10 overflow-hidden rounded-full">
-                                            <Image
-                                            width={40}
-                                            height={40}
-                                            src={order.user.image}
-                                            alt={order.user.name}
-                                            />
-                                        </div> */}
-                                        <div>
-                                            <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                                            {user.username}
-                                            </span>
-                                            <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
-                                            {user.role}
-                                            </span>
-                                        </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                        {user.email}
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                        {user.name}
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                                      <div className="flex items-center space-x-4">
-                                        <button
-                                          onClick={() => alert("Edit user")}
-                                          className="text-blue-500 hover:text-blue-700"
-                                        >
-                                          <PencilIcon className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                          onClick={() => alert("Delete user")}
-                                          className="text-red-500 hover:text-red-700"
-                                        >
-                                          <TrashBinIcon className="w-5 h-5" />
-                                        </button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell className="text-center py-4">
-                                  No user data available
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        )}
-                    </Table>
-                </div>
-            </div>
+  // Handle edit status
+  const handleStatusChange = async (issueId: number, newStatus: string) => {
+    const token = Cookies.get("token");
+    if (!token) return;
+
+    const updatedIssue = { status: newStatus };
+
+    try {
+      const res = await fetch(`http://localhost:4000/api/issues/${issueId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedIssue),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        // Update the status locally after successful update
+        setIssues((prevIssues) =>
+          prevIssues.map((issue) =>
+            issue.id === issueId ? { ...issue, status: newStatus } : issue
+          )
+        );
+      } else {
+        setError(result.message || "Failed to update status");
+      }
+    } catch (err) {
+      setError("Failed to update status");
+    }
+  };
+
+  // Edit issue handler
+  const handleEdit = (id: number) => {
+    console.log(`Editing issue with ID: ${id}`);
+  };
+
+  // Delete issue handler
+  const handleDelete = (id: number) => {
+    const updatedIssues = issues.filter((issue) => issue.id !== id);
+    setIssues(updatedIssues);
+    console.log(`Deleted issue with ID: ${id}`);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+      <div className="max-w-full overflow-x-auto">
+        <div className="min-w-[1102px]">
+          <Table>
+            {/* Table Header */}
+            <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+              <TableRow>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  No
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Machine Name
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Location
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Error Summary
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Priority
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Status
+                </TableCell>
+                {role === 'admin' && (
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                    Action
+                  </TableCell>
+                )}
+              </TableRow>
+            </TableHeader>
+
+            {/* Table Body */}
+            <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+              {issues.length > 0 ? (
+                issues.map((issue, index) => (
+                  <TableRow key={issue.id}>
+                    <TableCell className="px-5 py-4 sm:px-6 text-start">{index + 1}</TableCell>
+                    <TableCell className="px-5 py-4 sm:px-6 text-start">{issue.machineName}</TableCell>
+                    <TableCell className="px-5 py-4 sm:px-6 text-start">{issue.location}</TableCell>
+                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">{issue.errorSummary}</TableCell>
+                    
+                    {/* Priority Column with Badge */}
+                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                      {issue.priority == "Critical" && (
+                        <Badge variant="light" color="error">
+                          {issue.priority}
+                        </Badge>
+                      )}
+                      {issue.priority === "High" && (
+                        <Badge variant="light" color="warning">
+                          {issue.priority}
+                        </Badge>
+                      )}
+
+                      {issue.priority === "Medium" && (
+                        <Badge variant="light" color="info">
+                          {issue.priority}
+                        </Badge>
+                      )}
+
+                      {issue.priority === "Low" && (
+                        <Badge variant="light" color="success">
+                          {issue.priority}
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    {/* Status Column */}
+                    <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                      {role === 'technician' ? (
+                        issue.status !== "Closed" ?(
+                          <select
+                            value={issue.status}
+                            onChange={(e) => handleStatusChange(issue.id, e.target.value)}
+                            className="bg-gray-200 p-2 rounded-md"
+                          >
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Closed">Closed</option>
+                          </select>
+                        ) : (
+                          <span>{issue.status}</span>
+                        )
+                      ) : (
+                        <span>{issue.status}</span>
+                      )}
+                    </TableCell>
+
+                    {role === 'admin' && (
+                      <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                        <div className="flex items-center space-x-4">
+                          <button onClick={() => handleEdit(issue.id)} className="text-blue-500 hover:text-blue-700">
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                          <button onClick={() => handleDelete(issue.id)} className="text-red-500 hover:text-red-700">
+                            <TrashBinIcon className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell className="text-center py-4">
+                    No issues available.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-    );
+      </div>
+    </div>
+  );
 }
