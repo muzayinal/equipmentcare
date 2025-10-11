@@ -6,6 +6,8 @@ export const getAllIssues = (req, res) => {
     SELECT 
       i.id, 
       i.error_summary AS errorSummary, 
+      i.error_description AS description, 
+      i.error_code AS errorCode, 
       i.priority, 
       i.status, 
       m.machine_name AS machineName, 

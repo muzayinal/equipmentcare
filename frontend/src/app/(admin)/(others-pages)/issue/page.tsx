@@ -17,10 +17,6 @@ interface DecodedToken {
 
 export default function IssuePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-   // State untuk rentang tanggal
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
 
   // Update machineList type to handle an array of objects
   const [machineList, setMachineList] = useState<{ id: string; machineName: string }[]>([]);
@@ -195,48 +191,254 @@ export default function IssuePage() {
     }
   };
 
-  // Fungsi untuk menangani perubahan pada input tanggal
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value);
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value);
+  const exportToExcel = async () => {
+    try {
+      const token = Cookies.get("token");
 
-  // Fungsi untuk memfilter data berdasarkan rentang tanggal
-  const filterDataByDate = (data: any[]) => {
-    if (!startDate || !endDate) return data;
+      const response = await fetch("http://localhost:4000/api/issues", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-    const filteredData = data.filter((issue) => {
-      const issueDate = new Date(issue.createdAt);
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      return issueDate >= start && issueDate <= end;
-    });
+      if (!response.ok) {
+        throw new Error("Gagal mengambil data issue dari API");
+      }
 
-    return filteredData;
-  };
+      const data = await response.json();
 
-  // Fungsi ekspor ke PDF
-  // const exportToPDF = () => {
-  //   const doc = new jsPDF();
-  //   const table = document.querySelector("table"); // Menargetkan elemen tabel dari IssueTable
+      if (!Array.isArray(data)) {
+        throw new Error("Data yang diterima bukan array");
+      }
 
-  //   if (table) {
-  //     doc.autoTable({ html: table });
-  //     doc.save("issues_report.pdf");
-  //   }
-  // };
+      // Filter kolom yang akan diekspor
+      const exportData = data.map((item: any, index: number) => ({
+        No: index + 1,
+        "Machine Name": item.machineName || item.machine?.machineName || "-",
+        "Issue Code": item.errorCode,
+        Summary: item.errorSummary,
+        Description: item.description,
+        Priority: item.priority,
+        Status: item.status,
+      }));
 
-  // Fungsi ekspor ke Excel
-  const exportToExcel = () => {
-    const table = document.querySelector("table"); // Menargetkan elemen tabel dari IssueTable
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-    if (table) {
-      const wb = XLSX.utils.table_to_book(table);
-      XLSX.writeFile(wb, "issues_report.xlsx");
+      // Set width kolom
+      worksheet['!cols'] = [
+        { wch: 5 },  // Width for 'No' column
+        { wch: 30 }, // Width for 'Machine Name' column
+        { wch: 15 }, // Width for 'Issue Code' column
+        { wch: 30 }, // Width for 'Summary' column
+        { wch: 50 }, // Width for 'Description' column
+        { wch: 10 }, // Width for 'Priority' column
+        { wch: 10 }, // Width for 'Status' column
+      ];
+
+      // Inisialisasi style untuk header dan cell
+      const headerStyle = {
+        alignment: {
+          horizontal: 'center',  // Center-align the header
+          vertical: 'center',    // Vertically center the header
+        },
+        font: { bold: true },     // Make the header bold
+      };
+
+      const wrapTextStyle = {
+        alignment: {
+          wrapText: true,  // Enable text wrapping
+        },
+      };
+
+      const numberStyle = {
+        numFmt: '0',  // Number format (no decimal places)
+      };
+
+      // Menambahkan style pada header
+      const headerColumns = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];  // Kolom untuk header
+      headerColumns.forEach((col) => {
+        const cell = worksheet[`${col}1`];
+        if (cell) {
+          if (!cell.s) cell.s = {}; // Pastikan cell.s ada
+          cell.s = { ...cell.s, ...headerStyle };  // Terapkan style header (bold, center)
+        }
+      });
+
+      // Menambahkan wrap text pada kolom Summary dan Description
+      const wrapColumns = ['D', 'E'];  // Kolom untuk Summary dan Description
+      wrapColumns.forEach((col) => {
+        for (let rowIndex = 2; rowIndex <= exportData.length + 1; rowIndex++) {
+          const cell = worksheet[`${col}${rowIndex}`];
+          if (cell) {
+            if (!cell.s) cell.s = {}; // Pastikan cell.s ada
+            cell.s = { ...cell.s, ...wrapTextStyle };
+          }
+        }
+      });
+
+      // Menambahkan format angka untuk kolom Priority
+      for (let rowIndex = 2; rowIndex <= exportData.length + 1; rowIndex++) {
+        const cell = worksheet[`F${rowIndex}`];
+        if (cell) {
+          if (!cell.s) cell.s = {}; // Pastikan cell.s ada
+          cell.s = { ...cell.s, ...numberStyle };  // Terapkan format angka (tanpa desimal)
+        }
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Issues");
+
+      // Menulis file Excel
+      XLSX.writeFile(workbook, "issues_report.xlsx");
+      console.log(worksheet);
+    } catch (error) {
+      console.error("Export error:", error);
+      setMessage("Gagal mengekspor ke Excel");
     }
   };
 
-  useEffect(() => {
-    // Ambil data mesin dan set pengguna
-  }, []);
+  const exportToPDF = async () => {
+    try {
+      const token = Cookies.get("token");
+
+      const response = await fetch("http://localhost:4000/api/issues", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal mengambil data issue dari API");
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("Data yang diterima bukan array");
+      }
+
+      // Filter kolom yang akan diekspor
+      const exportData = data.map((item, index) => ({
+        No: index + 1,
+        "Machine Name": item.machineName || item.machine?.machineName || "-",
+        "Issue Code": item.errorCode,
+        Summary: item.errorSummary,
+        Description: item.description,
+        Priority: item.priority,
+        Status: item.status,
+      }));
+
+      // Buat instance jsPDF dengan orientasi landscape
+      const doc = new jsPDF('landscape');
+
+      // Set font dan ukuran yang lebih kecil
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);  // Ukuran font lebih kecil agar lebih banyak data yang muat
+
+      // Margin top
+      const marginTop = 20; // margin atas
+      let startY = marginTop;  // Mulai dari margin top
+
+      // Kolom header untuk tabel
+      const headers = ["No", "Machine Name", "Issue Code", "Summary", "Description", "Priority", "Status"];
+
+      // Lebar kolom yang ditetapkan (dalam milimeter), lebih kecil agar lebih rapi
+      const columnWidths = [3, 15, 10, 15, 30, 10, 10];  // Lebar kolom dalam milimeter
+
+      // Mengonversi lebar kolom ke satuan poin (1 mm = 2.834 pt)
+      const columnWidthsPt = columnWidths.map(width => width * 2.834);  // Konversi ke pt (point)
+
+      // Mengurangi jarak antara baris agar lebih kompak
+      const rowHeight = 6;  // Menurunkan tinggi baris untuk memberi ruang lebih
+      const startX = 10;
+
+      // Padding untuk memberi ruang di dalam cell
+      const padding = 2;  // Padding dalam poin (pt)
+
+      // Gambar header tabel dengan garis
+      let xPosition = startX;
+      headers.forEach((header, index) => {
+        const columnCenterX = xPosition + columnWidthsPt[index] / 2; // Hitung posisi tengah untuk teks
+        doc.text(header, columnCenterX, startY + padding, { align: "center" });  // Menambahkan padding dan align center
+        doc.rect(xPosition, startY - 2, columnWidthsPt[index], rowHeight); // Garis header
+        xPosition += columnWidthsPt[index];  // Menyesuaikan posisi x untuk header
+      });
+
+      // Kembalikan ke font normal untuk isi
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);  // Ukuran font lebih kecil agar lebih banyak data yang muat
+
+      // Fungsi untuk membungkus teks, dengan konversi lebar ke pt
+      const wrapText = (text, width) => {
+        const widthInPt = width * 2.834;  // Konversi dari mm ke pt
+        return doc.splitTextToSize(text, widthInPt); // Membungkus teks sesuai dengan lebar kolom
+      };
+
+      let currentY = startY + rowHeight; // Posisi baris pertama setelah header
+      // Gambar isi tabel dan garis vertikal serta horizontal
+      exportData.forEach((row) => {
+        let xPosition = startX;
+
+        // Wrap teks
+        const machineNameLines = wrapText(row["Machine Name"], columnWidths[1]);
+        const issueCodeLines = wrapText(row["Issue Code"], columnWidths[2]);
+        const summaryLines = wrapText(row["Summary"], columnWidths[3]);
+        const descriptionLines = wrapText(row["Description"], columnWidths[4]);
+
+        // Hitung baris maksimal
+        const maxLines = Math.max(
+          machineNameLines.length,
+          issueCodeLines.length,
+          summaryLines.length,
+          descriptionLines.length,
+          1 // Untuk kolom pendek lainnya
+        );
+
+        const rowHeightTotal = maxLines * rowHeight;
+
+        // Data tiap kolom
+        const cells = [
+          { text: String(row.No), lines: [String(row.No)], width: columnWidthsPt[0] },
+          { text: row["Machine Name"], lines: machineNameLines, width: columnWidthsPt[1] },
+          { text: row["Issue Code"], lines: issueCodeLines, width: columnWidthsPt[2] },
+          { text: row["Summary"], lines: summaryLines, width: columnWidthsPt[3] },
+          { text: row["Description"], lines: descriptionLines, width: columnWidthsPt[4] },
+          { text: row["Priority"], lines: [String(row["Priority"])], width: columnWidthsPt[5] },
+          { text: row["Status"], lines: [String(row["Status"])], width: columnWidthsPt[6] },
+        ];
+
+        cells.forEach((cell, colIndex) => {
+          const currentX = startX + columnWidthsPt.slice(0, colIndex).reduce((a, b) => a + b, 0);
+
+          // Tulis baris-baris teks
+          cell.lines.forEach((line, i) => {
+            doc.text(line, currentX + padding, currentY + i * rowHeight + padding);
+          });
+
+          // Gambar sel
+          doc.rect(currentX, currentY - 2, cell.width, rowHeightTotal);
+        });
+
+        // Update posisi Y ke bawah
+        currentY += rowHeightTotal;
+      });
+
+
+
+      // Menyimpan PDF
+      doc.save("issues_report.pdf");
+
+    } catch (error) {
+      console.error("Export error:", error);
+      setMessage("Gagal mengekspor ke PDF");
+    }
+  };
+
+
 
   return (
     <div>
@@ -255,7 +457,7 @@ export default function IssuePage() {
           <div className="space-x-4">
             <button
               className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-              // onClick={exportToPDF}
+              onClick={exportToPDF}
             >
               Export to PDF
             </button>
@@ -266,22 +468,6 @@ export default function IssuePage() {
               Export to Excel
             </button>
           </div>
-        </div>
-         {/* Filter Rentang Tanggal */}
-        <div className="flex mb-4">
-          <input
-            type="date"
-            value={startDate}
-            onChange={handleStartDateChange}
-            className="px-4 py-2 border border-gray-300 rounded-md"
-          />
-          <span className="mx-2">to</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={handleEndDateChange}
-            className="px-4 py-2 border border-gray-300 rounded-md"
-          />
         </div>
 
         <div className="space-y-6">
