@@ -2,6 +2,17 @@
 import React, { useState } from "react";
 import UserTable from "@/components/user/User";
 
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  address?: string;
+  role: string;
+}
+
+
 export default function User() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [username, setUsername] = useState("");
@@ -32,11 +43,11 @@ export default function User() {
 
   
   // Ketika tombol Edit diklik dari UserTable
-  const handleEditUser = (user: any) => {
+  const handleEditUser = (user: User) => {
     setUsername(user.username);
     setEmail(user.email);
     setNamaLengkap(user.name);
-    setAddress(user.address);
+    setAddress(user.address?? "");
     setRole(user.role);
     setEditingUserId(user.id);
     setIsModalOpen(true);
@@ -64,8 +75,12 @@ export default function User() {
 
       setMessage("User berhasil dihapus!");
       setReloadTable((prev) => !prev); // reload table
-    } catch (error: any) {
-      setMessage(error.message || "Terjadi kesalahan saat menghapus user");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message); // Safely access 'message' property
+      } else {
+        console.error("An unknown error occurred");
+      }
     }
   };
 

@@ -10,7 +10,6 @@ import {
 } from "../ui/table";
 import Cookies from "js-cookie";
 import Badge from "../ui/badge/Badge"; // Import Badge
-import Image from "next/image";
 import { jwtDecode } from "jwt-decode";
 
 interface DecodedToken {
@@ -25,12 +24,12 @@ import {
 } from "../../icons/index";
 
 interface Issue {
-  id: number;
+  id: string;
   machineName: string;
   location: string;
   errorSummary: string;
-  errorDescription: string;
-  errorCode: string;
+  description: string;
+  issueCode: string;
   priority: string;
   status: string;
 }
@@ -41,7 +40,7 @@ interface IssuesTableProps {
   onDelete: (machineId: string) => void;
 }
 
-export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProps) {
+export default function IssueTable({ reload }: IssuesTableProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -68,7 +67,6 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
         }
 
       } catch (err) {
-        console.error('Error decoding token:', err);
         setError('Invalid token or expired');
         setLoading(false);
         return;
@@ -76,7 +74,7 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
 
       // Fetch issues dari API
       try {
-        const res = await fetch(`http://localhost:4000/api/issues`, {
+        const res = await fetch(`http://localhost:4000/api/issues/all`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -90,8 +88,12 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
 
         const data = await res.json();
         setIssues(data);
-      } catch (err) {
-        setError("Failed to fetch issue data");
+      } catch (err : unknown) {
+        if (err instanceof Error) {
+          setError(`Failed to fetch issue data: ${err.message}`);
+        } else {
+          setError("Failed to fetch issue data");
+        }
       } finally {
         setLoading(false);
       }
@@ -110,7 +112,7 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
   }
 
   // Handle edit status
-  const handleStatusChange = async (issueId: number, newStatus: string) => {
+  const handleStatusChange = async (issueId: string, newStatus: string) => {
     const token = Cookies.get("token");
     if (!token) return;
 
@@ -137,18 +139,22 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
       } else {
         setError(result.message || "Failed to update status");
       }
-    } catch (err) {
-      setError("Failed to update status");
+    } catch (err : unknown) {
+      if (err instanceof Error) {
+        setError(`Failed to update status: ${err.message}`);
+      } else {
+        setError("Failed to update status");
+      }
     }
   };
 
   // Edit issue handler
-  const handleEdit = (id: number) => {
+  const handleEdit = (id: string) => {
     console.log(`Editing issue with ID: ${id}`);
   };
 
   // Delete issue handler
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     const updatedIssues = issues.filter((issue) => issue.id !== id);
     setIssues(updatedIssues);
     console.log(`Deleted issue with ID: ${id}`);
@@ -157,7 +163,7 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
       <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[1102px]">
+        <div className="min-w-[902px]">
           <Table>
             {/* Table Header */}
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
@@ -226,7 +232,7 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
 
                     {/* Status Column */}
                     <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                      {role === 'technician' ? (
+                      {role === 'admin' || role === 'technician' ? (
                         issue.status !== "Closed" ?(
                           <select
                             value={issue.status}
@@ -234,7 +240,7 @@ export default function IssueTable({ reload, onEdit, onDelete }: IssuesTableProp
                             className="bg-gray-200 p-2 rounded-md"
                           >
                             <option value="Open">Open</option>
-                            <option value="In Progress">In Progress</option>
+                            <option value="On Progress">On Progress</option>
                             <option value="Closed">Closed</option>
                           </select>
                         ) : (

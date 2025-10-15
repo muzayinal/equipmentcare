@@ -1,18 +1,16 @@
 "use client";
 
-import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
-import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
-import Link from "next/link";
+import { EyeCloseIcon, EyeIcon } from "@/icons";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 
-export default function SignInForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
+
+
+export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);  // Controls password visibility
-  const [isChecked, setIsChecked] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,10 +33,16 @@ export default function SignInForm({ onLoginSuccess }: { onLoginSuccess?: () => 
         throw new Error(data.message || "Login failed");
       }
       router.push("/");
-      if (onLoginSuccess) onLoginSuccess();
-    } catch (err: any) {
-      console.error("❌ Fetch error:", err);
-      setError(err.message || "Network error");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        // Now TypeScript knows that 'err' is an instance of Error
+        console.error("❌ Fetch error:", err);
+        setError(err.message || "Network error");
+      } else {
+        // Handle the case where the error is not an instance of Error
+        console.error("❌ Fetch error: Unknown error");
+        setError("Network error");
+      }
     }
   };
 

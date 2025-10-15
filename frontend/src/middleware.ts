@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 
+interface DecodedToken {
+  id: number;
+  username: string;
+  email: string;
+  role: string;  // Pastikan token memiliki properti 'role'
+}
+
+
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
@@ -25,7 +33,7 @@ export async function middleware(req: NextRequest) {
   // Jika ada token, decode dan cek role
   if (token) {
     try {
-      const decoded: any = jwt.decode(token);
+      const decoded = jwt.decode(token) as DecodedToken | null;;
       const userRole = decoded?.role;
 
       // Jika akses path khusus admin (/user dan /machine)
@@ -42,8 +50,15 @@ export async function middleware(req: NextRequest) {
       // Jika sudah login dan akses path lain, lanjutkan
       return NextResponse.next();
 
-    } catch (error) {
-      // Token invalid, redirect signin
+    } catch (error : unknown) {
+      // Check if the error is an instance of Error
+      if (error instanceof Error) {
+        console.error("Error:", error.message);
+      } else {
+        console.error("Unknown error occurred");
+      }
+
+      // Token invalid, redirect to signin page
       return NextResponse.redirect(new URL("/signin", req.url));
     }
   }

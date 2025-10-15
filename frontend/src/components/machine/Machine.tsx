@@ -2,6 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import {
+  PencilIcon,
+  TrashBinIcon,
+} from "../../icons/index";
+import {
   Table,
   TableBody,
   TableCell,
@@ -84,7 +88,7 @@ export default function MachineTable({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
       <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[1200px]">
+        <div className="min-w-[900px]">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
@@ -147,13 +151,13 @@ export default function MachineTable({
                           onClick={() => onEdit(m)}
                           className="text-blue-500 hover:text-blue-700"
                         >
-                          Edit
+                          <PencilIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => onDelete(m.id)}
                           className="text-red-500 hover:text-red-700"
                         >
-                          Delete
+                          <TrashBinIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </TableCell>

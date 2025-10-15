@@ -14,7 +14,7 @@ import {
   TrashBinIcon,
 } from "../../icons/index";
 
-interface UserData {
+interface User {
   id: string;
   username: string;
   email: string;
@@ -25,12 +25,12 @@ interface UserData {
 
 interface UserTableProps {
   reload: boolean;
-  onEdit: (user: any) => void;
+  onEdit: (user: User) => void;
   onDelete?: (userId: string) => void; // opsional, kalau mau handle delete dari parent
 }
 
 export default function UserTable({ reload, onEdit, onDelete }: UserTableProps) {
-  const [userData, setUserData] = useState<UserData[]>([]);
+  const [userData, setUserData] = useState<User[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
 

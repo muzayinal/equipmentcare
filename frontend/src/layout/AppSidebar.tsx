@@ -1,23 +1,17 @@
 "use client";
 import React, { useEffect, useRef, useState,useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import {
-  BoxCubeIcon,
   CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
+  BoxIcon,
   UserCircleIcon,
 } from "../icons/index";
-import SidebarWidget from "./SidebarWidget";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
@@ -51,8 +45,17 @@ const AppSidebar: React.FC = () => {
         // Ambil role dari payload token
         const roleFromToken = decodedToken.role;
         setRole(roleFromToken); // Set role ke state
-      } catch (error) {
-        setRole(null); // Set role ke null jika gagal decode
+      } catch (error : unknown) {
+        if (error instanceof Error) {
+          // Handle the case where the error is an instance of Error
+          console.error("Error decoding:", error.message);
+        } else {
+          // Handle the case where the error is not an instance of Error
+          console.error("Unknown error occurred");
+        }
+        
+        // Set role to null if decoding fails
+        setRole(null);
       }
     } else {
       setRole(null); // Set role ke null jika token tidak ditemukan
@@ -68,25 +71,15 @@ const AppSidebar: React.FC = () => {
             {
               icon: <GridIcon />,
               name: "Dashboard",
-              subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+              path: "/",
             },
             {
-              name: "Forms",
               icon: <ListIcon />,
-              subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-            },
-            {
-              name: "Tables",
-              icon: <TableIcon />,
-              subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-            },
-            {
-              icon: <CalenderIcon />,
               name: "Issue",
               path: "/issue",
             },
             {
-              icon: <CalenderIcon />,
+              icon: <BoxIcon />,
               name: "Machine",
               path: "/machine",
             },

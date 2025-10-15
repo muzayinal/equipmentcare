@@ -1,22 +1,31 @@
 "use client";
+
 import Image from "next/image";
-import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
+// import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { useRouter } from "next/navigation";
+import { jwtDecode } from "jwt-decode";
+import { co } from "@fullcalendar/core/internal-common";
 
 interface UserData {
   name: string;
   email: string;
 }
 
+interface DecodedToken {
+  id: number;
+  username: string;
+  email: string;
+  role: string;  // Pastikan token memiliki properti 'role'
+}
+
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [profileData, setProfileData] = useState<any>(null);
+  const [userId, setUserId] = useState<number | null>(null); // Only store number, not object
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   // === Dropdown Control ===
@@ -31,13 +40,40 @@ export default function UserDropdown() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       const token = Cookies.get("token");
+
       if (!token) {
         console.warn("Token not found!");
         return;
       }
 
       try {
-        const res = await fetch("http://localhost:4000/api/profile", {
+        // Decode token untuk mengambil payload
+        const decodedToken: DecodedToken = jwtDecode(token);
+        // Set userId state to the decoded id
+        setUserId(decodedToken.id);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error("Error decoding:", error.message);
+        } else {
+          console.error("Unknown error occurred");
+        }
+        setUserId(null);
+        return;
+      }
+    };
+
+    fetchUserProfile();
+  }, []); // This will only run once to decode the token
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (userId === null) return; // Don't fetch if userId is not set yet
+
+      const token = Cookies.get("token");
+      if (!token) return;
+
+      try {
+        const res = await fetch(`http://localhost:4000/api/users/${userId}`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -46,31 +82,35 @@ export default function UserDropdown() {
         });
 
         if (!res.ok) {
-          const errorData = await res.json();
-          setError(errorData.message || "Failed to fetch profile");
+          const resData = await res.json();
+          setError(resData.message || "Failed to fetch profile");
           return;
         }
 
         const data = await res.json();
-        setProfileData(data.user);
-      } catch (err) {
-        setError("Failed to fetch profile");
+        setUserData(data);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(`Failed to fetch profile: ${err.message}`);
+        } else {
+          setError("Failed to fetch profile");
+        }
       }
     };
 
-    fetchUserProfile();
-  }, []);
+    fetchUserData();
+  }, [userId]); // This will run whenever userId changes
 
   const handleLogout = () => {
     // Clear the token and user data from cookies
     Cookies.remove("token");
     setUserData(null); // Reset user data
-    setProfileData(null); // Reset profile data
     closeDropdown(); // Close the dropdown
 
     // Redirect to login page after logout
     router.push("/signin");
   };
+
   return (
     <div className="relative">
       <button
@@ -84,9 +124,7 @@ export default function UserDropdown() {
           {userData?.name || "User"}
         </span>
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           width="18"
           height="20"
           viewBox="0 0 18 20"
@@ -108,6 +146,9 @@ export default function UserDropdown() {
         onClose={closeDropdown}
         className="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
       >
+        {/* Display error message if it exists */}
+        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
             {userData?.name || "User Name"}
@@ -116,21 +157,6 @@ export default function UserDropdown() {
             {userData?.email || "user@domain.com"}
           </span>
         </div>
-
-        <ul className="flex flex-col gap-1 pt-4 pb-3 border-b border-gray-200 dark:border-gray-800">
-          {["Edit profile", "Account settings", "Support"].map((label, i) => (
-            <li key={i}>
-              <DropdownItem
-                onItemClick={closeDropdown}
-                tag="a"
-                href="/profile"
-                className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-              >
-                {label}
-              </DropdownItem>
-            </li>
-          ))}
-        </ul>
 
         <button
           onClick={handleLogout}

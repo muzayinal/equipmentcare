@@ -7,6 +7,7 @@ import {
   updateIssue,
   deleteIssue,
   updateIssueStatus,
+  getLimitIssues,
 } from "../controller/issueController.js";
 
 const router = express.Router();
@@ -27,10 +28,11 @@ function verifyToken(req, res, next) {
 }
 
 // Routes
-router.get("/", verifyToken, getAllIssues);
+router.get("/all", verifyToken, getAllIssues);
 router.get("/:id", verifyToken, getIssueById);
 router.post("/", verifyToken, createIssue);
 router.put("/:id", verifyToken, updateIssue);
 router.delete("/:id", verifyToken, deleteIssue);
 router.put("/:id/status", verifyToken, updateIssueStatus);
+router.get("/", verifyToken, getLimitIssues);
 export default router;

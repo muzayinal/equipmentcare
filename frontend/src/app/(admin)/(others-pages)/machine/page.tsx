@@ -4,6 +4,21 @@ import React, { useState } from "react";
 import MachineTable from "@/components/machine/Machine";
 import Cookies from "js-cookie";
 
+
+interface Machine {
+  id: string;
+  machineCode: string;
+  machineName: string;
+  location: string;
+  serialNumber: string;
+  brand: string;
+  model: string;
+  year: string;
+  status: string;
+  description?: string;  // Optional field (since you're providing a default value)
+}
+
+
 export default function MachinePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -31,7 +46,7 @@ export default function MachinePage() {
     setIsModalOpen(true);
   };
 
-  const openModalForEdit = (machine: any) => {
+  const openModalForEdit = (machine: Machine) => {
     // isi form dengan data mesin
     setMachineCode(machine.machineCode);
     setMachineName(machine.machineName);
@@ -122,9 +137,18 @@ export default function MachinePage() {
     const confirmDel = confirm("Apakah Anda yakin akan menghapus mesin ini?");
     if (!confirmDel) return;
 
+    const token = Cookies.get("token");
+    if (!token) {
+      return;
+    }
+    
     try {
       const res = await fetch(`http://localhost:4000/api/machines/${machineId}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       if (!res.ok) {
         const err = await res.json();
@@ -134,7 +158,7 @@ export default function MachinePage() {
       setReloadTable((prev) => !prev);
     } catch (error) {
       console.error("Error delete machine:", error);
-      setMessage((error as any).message || "Terjadi kesalahan hapus");
+      setMessage((error as Error).message || "Terjadi kesalahan hapus");
     }
   };
 

@@ -15,6 +15,25 @@ interface DecodedToken {
   role: string;  // Pastikan token memiliki properti 'role'
 }
 
+interface Issue {
+  id: string;
+  issueCode: string;
+  description: string;
+  priority: string;
+  status: string;
+  machineName: string;
+}
+
+interface Item {
+  machineName?: string;
+  machine?: { machineName: string };
+  errorCode: string;
+  errorSummary: string;
+  description: string;
+  priority: string;
+  status: string;
+}
+
 export default function IssuePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -30,8 +49,6 @@ export default function IssuePage() {
   const [status, setStatus] = useState("");
   const [message, setMessage] = useState("");
   const [reloadTable, setReloadTable] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [userId, setUserId] = useState<number | null>(null); 
 
   // ID issue yang sedang diedit (null artinya tambah baru)
@@ -57,8 +74,6 @@ export default function IssuePage() {
   
         } catch (err) {
           console.error('Error decoding token:', err);
-          setError('Invalid token or expired');
-          setLoading(false);
           return;
         }
 
@@ -87,7 +102,7 @@ export default function IssuePage() {
     setIsModalOpen(true);
   };
 
-  const openModalForEdit = (issue: any) => {
+  const openModalForEdit = (issue: Issue) => {
     setIssueCode(issue.issueCode);
     setDescription(issue.description);
     setPriority(issue.priority);
@@ -187,7 +202,7 @@ export default function IssuePage() {
       setReloadTable((prev) => !prev);
     } catch (error) {
       console.error("Error delete issue:", error);
-      setMessage((error as any).message || "Terjadi kesalahan hapus");
+      setMessage((error as Error).message || "Terjadi kesalahan hapus");
     }
   };
 
@@ -214,7 +229,7 @@ export default function IssuePage() {
       }
 
       // Filter kolom yang akan diekspor
-      const exportData = data.map((item: any, index: number) => ({
+      const exportData = data.map((item: Item, index: number) => ({
         No: index + 1,
         "Machine Name": item.machineName || item.machine?.machineName || "-",
         "Issue Code": item.errorCode,
@@ -341,7 +356,7 @@ export default function IssuePage() {
 
       // Margin top
       const marginTop = 20; // margin atas
-      let startY = marginTop;  // Mulai dari margin top
+      const startY = marginTop;  // Mulai dari margin top
 
       // Kolom header untuk tabel
       const headers = ["No", "Machine Name", "Issue Code", "Summary", "Description", "Priority", "Status"];
@@ -373,7 +388,7 @@ export default function IssuePage() {
       doc.setFontSize(9);  // Ukuran font lebih kecil agar lebih banyak data yang muat
 
       // Fungsi untuk membungkus teks, dengan konversi lebar ke pt
-      const wrapText = (text, width) => {
+      const wrapText = (text : string, width : number) : string [] => {
         const widthInPt = width * 2.834;  // Konversi dari mm ke pt
         return doc.splitTextToSize(text, widthInPt); // Membungkus teks sesuai dengan lebar kolom
       };
@@ -381,8 +396,6 @@ export default function IssuePage() {
       let currentY = startY + rowHeight; // Posisi baris pertama setelah header
       // Gambar isi tabel dan garis vertikal serta horizontal
       exportData.forEach((row) => {
-        let xPosition = startX;
-
         // Wrap teks
         const machineNameLines = wrapText(row["Machine Name"], columnWidths[1]);
         const issueCodeLines = wrapText(row["Issue Code"], columnWidths[2]);
